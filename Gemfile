@@ -9,7 +9,6 @@ gem 'dentaku'
 gem 'mysql2'
 gem 'activerecord'
 gem 'redis'
-gem 'json'
 
 group :development, :test do
   gem 'rake', '~> 10.4'
