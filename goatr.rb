@@ -1,0 +1,5 @@
+require 'slack-ruby-bot'
+require 'goatr/version'
+require 'goatr/about'
+require 'goatr/commands'
+require 'goatr/bot'

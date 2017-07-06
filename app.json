@@ -1,0 +1,6 @@
+{
+	"name": "Incident management bot for Slack",
+	"description": "Incident management bot. It's a whole new Goat Rodeo.",
+	"respository": "https://github.com/bobbymartinez/slack-mathbot",
+	"keywords": ["slack", "integration", "goat","incidents"],
+}
