@@ -1,8 +1,8 @@
-Slack-Mathbot
+Goatr Incident Response Bot
 =============
 
 
-An incident response bot.  It automates things that need to happen before, during, and after an incident.
+An incident response bot.  It automates things that need to happen before, during, and after an incident.  We all know that incidents can be like a goat rodeo, and this bot tries to make life as easy as possible during those hectic times.
 
 ### Commands
 
