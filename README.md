@@ -14,7 +14,7 @@ Posts the escape protocol.
 
 #### goatr set ic [name]
 
-Sets the channel topic with the incident commander's name.
+Sets the current channels topic to the incident commander's name.
 
 
 ## Copyright and License

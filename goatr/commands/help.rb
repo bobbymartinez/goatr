@@ -2,7 +2,7 @@ module Goatr
   module Commands
     class Help < SlackRubyBot::Commands::Base
       command 'help' do |client, data, _match|
-        client.say(channel: data.channel, text: 'See https://github.com/dblock/slack-mathbot, please.', gif: 'help')
+        client.say(channel: data.channel, text: 'See https://github.com/bobbymartinez/goatr, please.', gif: 'help')
       end
     end
   end
