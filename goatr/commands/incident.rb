@@ -1,22 +1,23 @@
 module Goatr
   module Commands
     class Incident < SlackRubyBot::Commands::Base
-      @ops_slack_usergroup_handle = ENV['OPS_SLACK_USERGROUP_HANDLE']
-      @slack_user = Slack::Web::Client.new(token:ENV['SLACK_USER_TOKEN'])
-      @slack_client = Slack::Web::Client.new(token:ENV['SLACK_API_TOKEN'])
+      @@responders_usergroup_handle = ENV['RESPONDERS_SLACK_USERGROUP_HANDLE']
+      @@responsers_usergroup_id = ENV['RESPONDERS_SLACK_USERGROUP_ID']
+      @@incident_bots_slack_ids = ENV['BOT_SLACK_IDS']
+      @@slack_user = Slack::Web::Client.new(token:ENV['SLACK_USER_TOKEN'])
+      @@slack_client = Slack::Web::Client.new(token:ENV['SLACK_API_TOKEN'])
 
       match(/^goatr incident start (?<channel_name>\w*)$/i) do |client, data, match|
         client.say(channel: data.channel,
-        text: "Making an Incident channel with the name #{match[:channel_name]}...")
+        text: " <!subteam^#{@@responsers_usergroup_id}|#{@@responders_usergroup_handle}> Making an Incident channel with the name #{match[:channel_name]}...")
 
         #create a channel with the first 21 characters of supplied name
         response = create_channel(match[:channel_name])
         new_channel_id = get_channel_id(response)
         client.say(channel: data.channel, text: "Incident channel #{match[:channel_name]} successfully created.")
-        client.say(channel: data.channel, text: "Now starting the goat rodeo.  Inviting Ops to channel. data :#{data}, new_channel_id : #{new_channel_id}\n methods:#{client.methods}\n response from channel creation - #{response}")
-        usergroup_user_ids = get_usergroup_users
-        invite_users_to_channel(new_channel_id,usergroup_user_ids)
-        client.say(channel: new_channel_id, text: "Welcome to the party, pal! \n https://cdn6.bigcommerce.com/s-r4b52/products/5258/images/20/esape__50973.1498690152.1280.1280.png")
+        client.say(channel: data.channel, text: "Now starting the goat rodeo. Inviting Ops to incident channel ##{match[:channel_name]}")
+        invite_responders_to_channel(new_channel_id)
+        post_to_channel(new_channel_id,"Welcome to the party, pal! \n https://cdn3.bigcommerce.com/s-d2bmn/images/stencil/1280x1280/products/3884/6/escape__01810.1500921070.png")
       end
 
       match(/^goatr set ic (?<ic_name>\w*)$/i) do |client, data, match|
@@ -24,12 +25,59 @@ module Goatr
       end
 
       class << self
+        #submits with the first 21 characters since that is the max limit for slack name
+        #will refactor to do proper validation later
         def create_channel(channel_name)
-          @slack_user.channels_create(name:channel_name[0..20])
+          @@slack_user.channels_create(name:channel_name[0..20])
         end
 
         def set_channel_topic(channel_id,topic_name)
-          @slack_client.channels_setTopic(channel:channel_id,topic:topic_name)
+          @@slack_client.channels_setTopic(channel:channel_id,topic:topic_name)
+        end
+
+        def post_to_channel(channel_id,message)
+          @@slack_client.chat_postMessage(channel:channel_id,text:message,as_user:true)
+        end
+
+        def get_usergroups
+          begin
+            response = @@slack_user.usergroups_list
+          rescue
+            nil
+          end
+          if response["ok"]
+            response['usergroups']
+          else
+            nil
+          end
+        end
+
+        def get_responders_usergroup_id
+          usergroups = get_usergroups
+          return nil unless (usergroups && !usergroups.empty?)
+          ug = usergroups.select{|usergroup| usergroup['handle'] == @@responders_usergroup_handle}.first
+          return nil unless (ug && !ug.empty?)
+          ug['id']
+        end
+
+        def get_responder_ids
+          responders_usergroup_id = get_responders_usergroup_id
+          return nil unless responders_usergroup_id
+          begin
+            response = @@slack_user.usergroups_users_list(usergroup:responders_usergroup_id)
+          rescue => e
+            nil
+          end
+          return nil unless response and !response.empty?
+          #returns a native ruby Array instead of Hashie::Array
+          response.users.map{|user_id| user_id}
+        end
+
+        def invite_responders_to_channel(channel_id)
+          responder_ids = get_responder_ids
+          return nil unless responder_ids and !responder_ids.empty?
+          bot_slack_ids = get_bot_slack_ids
+          invite_users_to_channel(channel_id,(responder_ids + bot_slack_ids))
         end
 
         def invite_users_to_channel(channel_id,user_ids)
@@ -39,24 +87,15 @@ module Goatr
         end
 
         def invite_user_to_channel(channel_id,user_id)
-          @slack_user.channels_invite(channel:channel_id,user:user_id)
+          @@slack_user.channels_invite(channel:channel_id,user:user_id)
         end
 
-        #can put this in use when the usergroup is dynamic.
-        #for now slack user ids are hardcoded
-        def get_usergroups
-          @slack_user.usergroups_list
+        def get_bot_slack_ids
+          @@incident_bots_slack_ids.split(",")
         end
 
         def get_usergroup_id(usergroup_handle,response)
           response['usergroups'].select{|usergroup| usergroup['handle'] == usergroup_handle}.first["id"]
-        end
-
-        #this method in the gem isn't working for some reason. I'll look into submitting
-        #a patch at some point, for now, hardcoding invitation user ids.
-        def get_usergroup_users
-          ENV['OPS_SLACK_IDS'].split(",")
-          #Slack::Web::Client.new(token:@slack_user_token).usergroups_users(usergroup_id)
         end
 
         def get_channel_id(response)
