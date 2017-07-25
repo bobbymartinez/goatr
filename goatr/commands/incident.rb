@@ -20,8 +20,11 @@ module Goatr
         post_to_channel(new_channel_id,"Welcome to the party, pal! \n https://cdn3.bigcommerce.com/s-d2bmn/images/stencil/1280x1280/products/3884/6/escape__01810.1500921070.png")
       end
 
-      match(/^goatr set ic (?<ic_name>\w*)$/i) do |client, data, match|
-        set_channel_topic(data.channel,"Incident IC is #{match[:ic_name]}")
+      match(/^goatr I am IC$/i) do |client, data, match|
+        #client.say(channel: data.channel, text: "#{data} + #{match}")
+        user_name = get_slack_user_name(data['user'])
+        #storage = Goatr::Storage::Incident.new
+        set_channel_topic(data.channel,"Incident IC is #{user_name}")
       end
 
       class << self
@@ -37,6 +40,20 @@ module Goatr
 
         def post_to_channel(channel_id,message)
           @@slack_client.chat_postMessage(channel:channel_id,text:message,as_user:true)
+        end
+
+        def get_slack_user_name(user_id)
+          user_info = get_user_info(user_id)
+          return nil unless (user_info && !user_info.empty?)
+          user_info['user']['profile']['real_name']
+        end
+
+        def get_user_info(user_id)
+          begin
+            @@slack_client.users_info(user:user_id)
+          rescue
+            nil
+          end
         end
 
         def get_usergroups
