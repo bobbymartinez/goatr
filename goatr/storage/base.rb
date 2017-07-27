@@ -14,3 +14,4 @@ module Goatr
       end
     end
   end
+end

@@ -1,3 +1,5 @@
+require 'goatr/storage/incident'
+
 module Goatr
   module Commands
     class Incident < SlackRubyBot::Commands::Base
@@ -14,12 +16,18 @@ module Goatr
         #create a channel with the first 21 characters of supplied name
         response = create_channel(match[:channel_name])
         new_channel_id = get_channel_id(response)
-        client.say(channel: data.channel, text: "Incident channel #{match[:channel_name]} successfully created.")
+        incident = create_new_incident(match[:channel_name],new_channel_id)
+
+        client.say(channel: data.channel, text: "Incident channel <##{new_channel_id}|#{match[:channel_name]}> successfully created.")
         client.say(channel: data.channel, text: "Now starting the goat rodeo. Inviting Ops to incident channel ##{match[:channel_name]}")
-        invite_responders_to_channel(new_channel_id)
-        post_to_channel(new_channel_id,"Welcome to the party, pal! \n https://cdn3.bigcommerce.com/s-d2bmn/images/stencil/1280x1280/products/3884/6/escape__01810.1500921070.png")
+        #invite_responders_to_channel(new_channel_id)
+        invite_user_to_channel(new_channel_id,'U6BKN9HPX')
+        #post_to_channel(new_channel_id,"Welcome to the party, pal! \n https://cdn3.bigcommerce.com/s-d2bmn/images/stencil/1280x1280/products/3884/6/escape__01810.1500921070.png")
+        post_to_channel(new_channel_id, "incident data #{incident}")
       end
 
+
+      #need to make this set the incident commander data in the incident data
       match(/^goatr I am IC$/i) do |client, data, match|
         #client.say(channel: data.channel, text: "#{data} + #{match}")
         user_name = get_slack_user_name(data['user'])
@@ -27,9 +35,22 @@ module Goatr
         set_channel_topic(data.channel,"Incident IC is #{user_name}")
       end
 
+      match(/^goatr list incidents$/i) do |client, data, match|
+        client.say(channel: data.channel, text:"#{get_incident_list}")
+      end
+
       class << self
         #submits with the first 21 characters since that is the max limit for slack name
         #will refactor to do proper validation later
+
+        def create_new_incident(channel_name,channel_id)
+          storage = Goatr::Storage::Incident.new
+          incident = storage.new_incident
+          incident["slack_channel"] = {"id" => channel_id, "name" => channel_name}
+          incident["status"] = "active"
+          storage.save_incident(incident["id"],incident)
+        end
+
         def create_channel(channel_name)
           @@slack_user.channels_create(name:channel_name[0..20])
         end
@@ -46,6 +67,16 @@ module Goatr
           user_info = get_user_info(user_id)
           return nil unless (user_info && !user_info.empty?)
           user_info['user']['profile']['real_name']
+        end
+
+        def get_incident_list
+          storage = Goatr::Storage::Incident.new
+          incidents = storage.get_incidents
+          str_output = []
+          incidents.each do |incident|
+            str_output << "#{incident["id"]} - ##{incident["slack_channel"]["name"]} - Status: #{incident["status"]}"
+          end
+          str_output.join("\n")
         end
 
         def get_user_info(user_id)
