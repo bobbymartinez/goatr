@@ -1,4 +1,5 @@
 require 'goatr/storage/incident'
+require 'goatr/incident'
 
 module Goatr
   module Commands
@@ -8,35 +9,53 @@ module Goatr
       @@incident_bots_slack_ids = ENV['BOT_SLACK_IDS']
       @@slack_user = Slack::Web::Client.new(token:ENV['SLACK_USER_TOKEN'])
       @@slack_client = Slack::Web::Client.new(token:ENV['SLACK_API_TOKEN'])
+      @@storage = Goatr::Storage::Incident.new
 
-      match(/^goatr incident start (?<channel_name>\w*)$/i) do |client, data, match|
+      match(/^goatr start incident (?<channel_name>\w*)$/i) do |client, data, match|
         client.say(channel: data.channel,
-        text: " <!subteam^#{@@responsers_usergroup_id}|#{@@responders_usergroup_handle}> Making an Incident channel with the name #{match[:channel_name]}...")
+        text: " <!subteam^#{@@responsers_usergroup_id}|#{@@responders_usergroup_handle}> Making an Incident channel:  #{match[:channel_name]}...")
 
         #create a channel with the first 21 characters of supplied name
         response = create_channel(match[:channel_name])
         new_channel_id = get_channel_id(response)
         incident = create_new_incident(match[:channel_name],new_channel_id)
-
         client.say(channel: data.channel, text: "Incident channel <##{new_channel_id}|#{match[:channel_name]}> successfully created.")
-        client.say(channel: data.channel, text: "Now starting the goat rodeo. Inviting Ops to incident channel ##{match[:channel_name]}")
-        #invite_responders_to_channel(new_channel_id)
-        invite_user_to_channel(new_channel_id,'U6BKN9HPX')
-        #post_to_channel(new_channel_id,"Welcome to the party, pal! \n https://cdn3.bigcommerce.com/s-d2bmn/images/stencil/1280x1280/products/3884/6/escape__01810.1500921070.png")
-        post_to_channel(new_channel_id, "incident data #{incident}")
-      end
-
-
-      #need to make this set the incident commander data in the incident data
-      match(/^goatr I am IC$/i) do |client, data, match|
-        #client.say(channel: data.channel, text: "#{data} + #{match}")
-        user_name = get_slack_user_name(data['user'])
-        #storage = Goatr::Storage::Incident.new
-        set_channel_topic(data.channel,"Incident IC is #{user_name}")
+        client.say(channel: data.channel, text: "Now starting the goat rodeo. Inviting Ops to ##{match[:channel_name]}")
+        invite_responders_to_channel(new_channel_id)
+        post_to_channel(new_channel_id,"Welcome to the party, pal! \n https://cdn3.bigcommerce.com/s-d2bmn/images/stencil/1280x1280/products/3884/6/escape__01810.1500921070.png")
       end
 
       match(/^goatr list incidents$/i) do |client, data, match|
         client.say(channel: data.channel, text:"#{get_incident_list}")
+      end
+
+      #need to make this set the incident commander data in the incident data
+      #for no it just adjusts the channel title.  Need to add a channel_id -> incident id mapping
+      #to dynamically lookup incident ID by channel id to see which incident this applies to.
+      match(/^goatr I am IC$/i) do |client, data, match|
+        user_info = get_slack_user_info(data['user'])
+        set_channel_topic(data.channel,"Incident IC is #{user_info['user']['profile']['real_name']}")
+        incident = Goatr::Incident.find_incident_by_channel_id(data.channel)
+        incident.slack_commander_name = user_info['user']['profile']['real_name']
+        incident.slack_commander_id = user_info['user']['id']
+        incident.save
+        incident
+      end
+
+      match(/^goatr resolve incident$/i) do |client, data, match|
+        begin
+
+          client.say(channel: data.channel, text:"#{resolving this incident}")
+        rescue => e
+          puts "#{e.to_json}"
+        end
+
+      end
+
+      match(/^goatr test$/i) do |client, data, match|
+        # user_info = get_user_info(data["user"])
+        # puts "#{user_info['user']}"
+        # puts "#{user_info['user']['id']}"
       end
 
       class << self
@@ -44,15 +63,26 @@ module Goatr
         #will refactor to do proper validation later
 
         def create_new_incident(channel_name,channel_id)
-          storage = Goatr::Storage::Incident.new
-          incident = storage.new_incident
-          incident["slack_channel"] = {"id" => channel_id, "name" => channel_name}
-          incident["status"] = "active"
-          storage.save_incident(incident["id"],incident)
+          incident = Goatr::Incident.create
+          incident.slack_channel_name = channel_name
+          incident.slack_channel_id = channel_id
+          incident.status = "active"
+          incident.start_time = Time.now.to_i
+          incident.save
+          incident.map_channel(channel_id)
+          incident
+        end
+
+        def resolve_incident
+
         end
 
         def create_channel(channel_name)
           @@slack_user.channels_create(name:channel_name[0..20])
+        end
+
+        def set_incident_commander(user_id,user_name)
+          puts "#{user_info}"
         end
 
         def set_channel_topic(channel_id,topic_name)
@@ -63,15 +93,14 @@ module Goatr
           @@slack_client.chat_postMessage(channel:channel_id,text:message,as_user:true)
         end
 
-        def get_slack_user_name(user_id)
+        def get_slack_user_info(user_id)
           user_info = get_user_info(user_id)
           return nil unless (user_info && !user_info.empty?)
-          user_info['user']['profile']['real_name']
+          user_info
         end
 
         def get_incident_list
-          storage = Goatr::Storage::Incident.new
-          incidents = storage.get_incidents
+          @@storage.get_incidents
           str_output = []
           incidents.each do |incident|
             str_output << "#{incident["id"]} - ##{incident["slack_channel"]["name"]} - Status: #{incident["status"]}"
@@ -101,11 +130,15 @@ module Goatr
         end
 
         def get_responders_usergroup_id
-          usergroups = get_usergroups
-          return nil unless (usergroups && !usergroups.empty?)
-          ug = usergroups.select{|usergroup| usergroup['handle'] == @@responders_usergroup_handle}.first
-          return nil unless (ug && !ug.empty?)
-          ug['id']
+          ENV['RESPONDERS_SLACK_USERGROUP_ID']
+          # can uncomment the bottom code if we ever want to make this dynamic based on
+          # usergroup id, for now it's faster to load from ENV var since we know which UserGroup
+          # we want to invite beforehand
+          # usergroups = get_usergroups
+          # return nil unless (usergroups && !usergroups.empty?)
+          # ug = usergroups.select{|usergroup| usergroup['handle'] == @@responders_usergroup_handle}.first
+          # return nil unless (ug && !ug.empty?)
+          # ug['id']
         end
 
         def get_responder_ids
@@ -143,7 +176,7 @@ module Goatr
         end
 
         def get_usergroup_id(usergroup_handle,response)
-          response['usergroups'].select{|usergroup| usergroup['handle'] == usergroup_handle}.first["id"]
+          response['usergroups'].select{|usergroup| usergroup['handle'] == usergroup_handle}.first['id']
         end
 
         def get_channel_id(response)

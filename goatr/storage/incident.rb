@@ -4,6 +4,7 @@ module Goatr
   module Storage
     class Incident < Base
       @@id_counter = "incident_id_counter"
+
       def new_incident
         begin
           puts "incrementing incident count"
@@ -24,6 +25,10 @@ module Goatr
           puts e.to_json
           nil
         end
+      end
+
+      def get_incident_id_by_channel_id(channel_id)
+        client.get("#{cache_key_prefix}channel-#{channel_id}")
       end
 
       def get_incidents
@@ -50,6 +55,11 @@ module Goatr
           nil
         end
         incident
+      end
+
+      #maps the slack channel id to
+      def map_channel_to_incident(channel_id,incident_id)
+        client.set("#{cache_key_prefix}channel-#{channel_id}",incident_id)
       end
 
       private
