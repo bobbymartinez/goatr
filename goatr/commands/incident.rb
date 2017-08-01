@@ -9,9 +9,11 @@ module Goatr
       @@incident_bots_slack_ids = ENV['BOT_SLACK_IDS']
       @@slack_user = Slack::Web::Client.new(token:ENV['SLACK_USER_TOKEN'])
       @@slack_client = Slack::Web::Client.new(token:ENV['SLACK_API_TOKEN'])
+      @@authorized_user_ids = ENV['AUTHORIZED_USER_IDS']
       @@storage = Goatr::Storage::Incident.new
 
       match(/^goatr start incident (?<channel_name>\w*)$/i) do |client, data, match|
+        raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
         client.say(channel: data.channel,
         text: " <!subteam^#{@@responsers_usergroup_id}|#{@@responders_usergroup_handle}> Making an Incident channel:  #{match[:channel_name]}...")
 
@@ -22,7 +24,7 @@ module Goatr
         client.say(channel: data.channel, text: "Incident channel <##{new_channel_id}|#{match[:channel_name]}> successfully created.")
         client.say(channel: data.channel, text: "Now starting the goat rodeo. Inviting Ops to ##{match[:channel_name]}")
         invite_responders_to_channel(new_channel_id)
-        post_to_channel(new_channel_id,"Welcome to the party, pal! \n https://cdn3.bigcommerce.com/s-d2bmn/images/stencil/1280x1280/products/3884/6/escape__01810.1500921070.png")
+        post_to_channel(new_channel_id,"Welcome to the party, pal! \n https://cdn3.bigcommerce.com/s-d2bmn/images/stencil/1280x1280/products/3884/6/escape__01810.1500921070.png\n\n\nIncident Commander, set yourself with command \"goatr I am IC\"")
       end
 
       match(/^goatr list incidents$/i) do |client, data, match|
@@ -33,6 +35,7 @@ module Goatr
       #for no it just adjusts the channel title.  Need to add a channel_id -> incident id mapping
       #to dynamically lookup incident ID by channel id to see which incident this applies to.
       match(/^goatr I am IC$/i) do |client, data, match|
+        raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
         user_info = get_slack_user_info(data['user'])
         set_channel_topic(data.channel,"Incident IC is #{user_info['user']['profile']['real_name']}")
         incident = Goatr::Incident.find_incident_by_channel_id(data.channel)
@@ -43,9 +46,12 @@ module Goatr
       end
 
       match(/^goatr resolve incident$/i) do |client, data, match|
+        raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
         begin
-
-          client.say(channel: data.channel, text:"#{resolving this incident}")
+          incident = Goatr::Incident.find_incident_by_channel_id(data.channel)
+          incident.status = "resolved"
+          incident.save
+          client.say(channel: data.channel, text:"Resolved incident #{incident.id} for channel #{incident.slack_channel_name}")
         rescue => e
           puts "#{e.to_json}"
         end
@@ -53,9 +59,12 @@ module Goatr
       end
 
       match(/^goatr test$/i) do |client, data, match|
+        raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
         # user_info = get_user_info(data["user"])
         # puts "#{user_info['user']}"
         # puts "#{user_info['user']['id']}"
+        puts @@storage.get_incidents.class
+        puts @@storage.get_incidents.to_s
       end
 
       class << self
@@ -71,10 +80,6 @@ module Goatr
           incident.save
           incident.map_channel(channel_id)
           incident
-        end
-
-        def resolve_incident
-
         end
 
         def create_channel(channel_name)
@@ -100,10 +105,10 @@ module Goatr
         end
 
         def get_incident_list
-          @@storage.get_incidents
+          incidents = Goatr::Incident.all
           str_output = []
           incidents.each do |incident|
-            str_output << "#{incident["id"]} - ##{incident["slack_channel"]["name"]} - Status: #{incident["status"]}"
+            str_output << "#{incident.id} - ##{incident.slack_channel_name} - Status: #{incident.status}"
           end
           str_output.join("\n")
         end
@@ -181,6 +186,10 @@ module Goatr
 
         def get_channel_id(response)
           response['channel']['id']
+        end
+
+        def is_authorized?(user_id)
+          @@authorized_user_ids.include? user_id
         end
 
         #To be implemented, input validation for legimitate slack channel names

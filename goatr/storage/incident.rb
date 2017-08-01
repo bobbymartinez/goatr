@@ -3,7 +3,11 @@ require 'goatr/storage/base'
 module Goatr
   module Storage
     class Incident < Base
-      @@id_counter = "incident_id_counter"
+      @@id_counter = "incident-counter"
+
+      def incident_count
+        @@storage.get("incident-counter")
+      end
 
       def new_incident
         begin
@@ -28,12 +32,12 @@ module Goatr
       end
 
       def get_incident_id_by_channel_id(channel_id)
-        client.get("#{cache_key_prefix}channel-#{channel_id}")
+        client.hget("#{channel_to_incident_map_key}",channel_id)
       end
 
       def get_incidents
         begin
-          incident_keys = client.keys("#{cache_key_prefix}*")
+          incident_keys = client.keys("#{cache_key_prefix}[1-9]*")
           incidents = []
           incident_keys.each do |key|
             incidents << JSON.parse(client.get(key))
@@ -59,7 +63,7 @@ module Goatr
 
       #maps the slack channel id to
       def map_channel_to_incident(channel_id,incident_id)
-        client.set("#{cache_key_prefix}channel-#{channel_id}",incident_id)
+        client.hset("#{channel_to_incident_map_key}",channel_id,incident_id)
       end
 
       private
@@ -67,6 +71,11 @@ module Goatr
       def cache_key_prefix
         'incident-'
       end
+
+      def channel_to_incident_map_key
+        "#{cache_key_prefix}channel-id-to-incident-id-map"
+      end
+
     end
   end
 end

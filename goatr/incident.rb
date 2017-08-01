@@ -34,6 +34,15 @@ module Goatr
       self.find(incident_id)
     end
 
+    def self.all
+      incidents = []
+      incidents_info = @@storage.get_incidents
+      incidents_info.each do |incident_info|
+        incidents << self.new(incident_info)
+      end
+      incidents
+    end
+
     def save
       raise "CouldNotSaveWithoutId" unless @id
       incident_info = @@storage.save_incident(@id,{"id" => @id,
