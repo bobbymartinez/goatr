@@ -68,6 +68,15 @@ module Goatr
         puts @@storage.get_incidents.to_s
       end
 
+      match(/^goatr what is an incident?$/i) do |client, data, match|
+        begin
+          client.say(channel: data.channel, text:"It's when something bA-A-A-A-A-A-A-d happens because Mitch broke something.")
+        rescue => e
+          puts "#{e.to_json}"
+        end
+
+      end
+
       class << self
         #submits with the first 21 characters since that is the max limit for slack name
         #will refactor to do proper validation later
