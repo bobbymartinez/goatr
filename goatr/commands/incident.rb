@@ -50,6 +50,7 @@ module Goatr
         begin
           incident = Goatr::Incident.find_incident_by_channel_id(data.channel)
           incident.status = "resolved"
+          incident.end_time = Time.now.to_i
           incident.save
           client.say(channel: data.channel, text:"Resolved incident #{incident.id} for channel #{incident.slack_channel_name}")
         rescue => e
