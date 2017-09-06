@@ -12,7 +12,7 @@ module Goatr
       @@authorized_user_ids = ENV['AUTHORIZED_USER_IDS']
       @@storage = Goatr::Storage::Incident.new
 
-      match(/^goatr start incident (?<channel_name>\w*)$/i) do |client, data, match|
+      match(/^goatr (?=.*\bstart\b)(?=.*\bincident\b).* (?<channel_name>\w*)$/i) do |client, data, match|
         #descoping from Ops only allowed to use
         #raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
         client.say(channel: data.channel,
