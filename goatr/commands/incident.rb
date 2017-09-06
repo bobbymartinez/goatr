@@ -13,7 +13,8 @@ module Goatr
       @@storage = Goatr::Storage::Incident.new
 
       match(/^goatr start incident (?<channel_name>\w*)$/i) do |client, data, match|
-        raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
+        #descoping from Ops only allowed to use
+        #raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
         client.say(channel: data.channel,
         text: " <!subteam^#{@@responsers_usergroup_id}|#{@@responders_usergroup_handle}> Making an Incident channel:  #{match[:channel_name]}...")
 
@@ -35,7 +36,7 @@ module Goatr
       #for no it just adjusts the channel title.  Need to add a channel_id -> incident id mapping
       #to dynamically lookup incident ID by channel id to see which incident this applies to.
       match(/^goatr I am IC$/i) do |client, data, match|
-        raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
+        #raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
         user_info = get_slack_user_info(data['user'])
         set_channel_topic(data.channel,"Incident IC is #{user_info['user']['profile']['real_name']}")
         incident = Goatr::Incident.find_incident_by_channel_id(data.channel)
@@ -46,7 +47,7 @@ module Goatr
       end
 
       match(/^goatr resolve incident$/i) do |client, data, match|
-        raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
+        #raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
         begin
           incident = Goatr::Incident.find_incident_by_channel_id(data.channel)
           incident.status = "resolved"
