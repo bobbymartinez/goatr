@@ -119,7 +119,7 @@ module Goatr
           incidents = Goatr::Incident.all
           str_output = []
           incidents.each do |incident|
-            str_output << "#{incident.id} - ##{incident.slack_channel_name} - Status: #{incident.status}"
+            str_output << "#{incident.id} - ##{incident.slack_channel_name} - Status: #{incident.status} - IC: #{incident.slack_commander_name}"
           end
           str_output.join("\n")
         end
