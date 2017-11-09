@@ -12,18 +12,19 @@ module Goatr
       @@authorized_user_ids = ENV['AUTHORIZED_USER_IDS']
       @@storage = Goatr::Storage::Incident.new
 
-      match(/^goatr (?=.*\bstart\b)(?=.*\bincident\b).* (?<channel_name>\w*)$/i) do |client, data, match|
+      match(/^goatr\s+(start\s+incident|incident\s+start)\s*(?<channel_name>[a-zA-Z0-9_-]*)/i) do |client, data, match|
         #descoping from Ops only allowed to use
         #raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
+        channel_name = match[:channel_name].nil? ? "incident-#{Time.now.to_i}" : match[:channel_name]
         client.say(channel: data.channel,
-        text: " <!subteam^#{@@responsers_usergroup_id}|#{@@responders_usergroup_handle}> Making an Incident channel:  #{match[:channel_name]}...")
+        text: " <!subteam^#{@@responsers_usergroup_id}|#{@@responders_usergroup_handle}> Making an Incident channel:  #{channel_name}...")
 
         #create a channel with the first 21 characters of supplied name
-        response = create_channel(match[:channel_name])
+        response = create_channel(channel_name)
         new_channel_id = get_channel_id(response)
-        incident = create_new_incident(match[:channel_name],new_channel_id)
-        client.say(channel: data.channel, text: "Incident channel <##{new_channel_id}|#{match[:channel_name]}> successfully created.")
-        client.say(channel: data.channel, text: "Now starting the goat rodeo. Inviting Ops to ##{match[:channel_name]}")
+        incident = create_new_incident(channel_name, new_channel_id)
+        client.say(channel: data.channel, text: "Incident channel <##{new_channel_id}|#{channel_name}> successfully created.")
+        client.say(channel: data.channel, text: "Now starting the goat rodeo. Inviting Ops to ##{channel_name}")
         invite_responders_to_channel(new_channel_id)
         post_to_channel(new_channel_id,"Welcome to the party, pal! \n https://cdn3.bigcommerce.com/s-d2bmn/images/stencil/1280x1280/products/3884/6/escape__01810.1500921070.png\n\n\nIncident Commander, set yourself with command \"goatr I am IC\"")
       end
