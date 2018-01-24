@@ -12,7 +12,7 @@ gem 'redis'
 
 group :development, :test do
   gem 'rake', '~> 10.4'
-  gem 'rubocop', '0.31.0'
+  gem 'rubocop', '0.49.0'
   gem 'foreman'
 end
 
