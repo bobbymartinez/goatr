@@ -1,0 +1,26 @@
+name: goatr
+base_image: language/ruby_2_4
+log_mount_dir: /var/log/log_mount
+log_dir: /opt/app_user_writable/log
+team: sre
+slack_channel: techops
+playbook_url: https://intranet.bigcommerce.com/display/TECHOPS/Goatr%2C+The+Incident+Response+Bot
+before_tasks:
+  - bundle exec rake db:migrate
+processes:
+  web:
+    cmd:
+      - bundle exec rails server puma -b 0.0.0.0 -p 8080 >> $LOG_DIR/server_plain.log 2>&1
+    port: 8080
+    public: true
+    external_domain_prefix: goatr
+    domain:
+      prefix: goatr
+    health_check:
+      http:
+        port: 8080
+        endpoint: /hi
+  bot:
+    cmd:
+      - goatr/bot.rb
+    public: false
