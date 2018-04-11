@@ -37,6 +37,8 @@ module Goatr
     def self.all
       incidents = []
       incidents_info = @@storage.get_incidents
+      return [] unless incidents_info && !incidents_info.empty?
+      incidents_info.sort!{|x,y| x['id'] <=> y['id']}
       incidents_info.each do |incident_info|
         incidents << self.new(incident_info)
       end
