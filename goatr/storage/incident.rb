@@ -46,7 +46,8 @@ module Goatr
           puts e.to_json
           nil
         end
-        incidents
+        #sort by incident id
+        incidents.sort{|x| x['id']}.reverse
       end
 
       def save_incident(id,incident)

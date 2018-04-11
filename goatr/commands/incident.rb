@@ -15,7 +15,7 @@ module Goatr
       match(/^goatr\s+(start\s+incident|incident\s+start)\s*(?<channel_name>[a-zA-Z0-9_-]*)/i) do |client, data, match|
         #descoping from Ops only allowed to use
         #raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
-        channel_name = match[:channel_name].nil? ? "incident-#{Time.now.to_i}" : match[:channel_name]
+        channel_name = match[:channel_name].nil? ? "inc-#{Time.now.to_i}" : match[:channel_name]
         client.say(channel: data.channel,
         text: " <!subteam^#{@@responsers_usergroup_id}|#{@@responders_usergroup_handle}> Making an Incident channel:  #{channel_name}...")
 
@@ -39,7 +39,7 @@ module Goatr
       match(/^goatr I am IC$/i) do |client, data, match|
         #raise "User #{data['user']} not authorized." unless is_authorized?(data['user'])
         user_info = get_slack_user_info(data['user'])
-        set_channel_topic(data.channel,"Incident IC is #{user_info['user']['profile']['real_name']}")
+        set_channel_topic(data.channel,"Incident Commander is #{user_info['user']['profile']['real_name']}")
         incident = Goatr::Incident.find_incident_by_channel_id(data.channel)
         incident.slack_commander_name = user_info['user']['profile']['real_name']
         incident.slack_commander_id = user_info['user']['id']
