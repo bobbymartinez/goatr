@@ -12,7 +12,6 @@ processes:
     cmd:
       - bundle exec rails server puma -b 0.0.0.0 -p 8080 >> $LOG_DIR/server_plain.log 2>&1
     port: 8080
-    public: true
     external_domain_prefix: goatr
     domain:
       prefix: goatr
