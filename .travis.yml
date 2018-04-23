@@ -1,3 +1,9 @@
-rvm:
-  - 2.2.0
-
+language: ruby
+services:
+  - docker
+script:
+  - ./.travis.sh
+notifications:
+  webhooks:
+    urls:
+      - https://launchbay.bigcommerce.net/api/v1/build_results/goatr

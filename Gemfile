@@ -1,7 +1,8 @@
 source 'http://rubygems.org'
 
-ruby '2.2.0'
+ruby '2.4'
 
+gem 'containerify', git: 'git@github.com:bigcommerce-labs/containerify', branch: 'v3.1.0'
 gem 'slack-ruby-bot', github: 'dblock/slack-ruby-bot' # '~> 0.5.0'
 gem 'puma'
 gem 'sinatra'
